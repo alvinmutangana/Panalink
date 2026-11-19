@@ -2,15 +2,18 @@ import { Suspense } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "../../lib/auth";
-import { getDict } from "../../lib/i18n";
+import { getDict, getLang } from "../../lib/i18n";
 import LanguageSwitcher from "../../components/LanguageSwitcher";
 import SignOutButton from "./sign-out-button";
+
+const inboxLabel = { en: "Messages", fr: "Messages", rw: "Ubutumwa" };
 
 async function UserInfo() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) redirect("/login");
 
   const t = await getDict();
+  const lang = await getLang();
   const { user } = session;
   const roleLabel = t.roles[user.role as keyof typeof t.roles] ?? user.role;
 
@@ -29,6 +32,7 @@ async function UserInfo() {
 
       <div className="mt-4 flex flex-col gap-2">
         <a href="/listings" className="underline">{t.browse}</a>
+        <a href="/messages" className="underline">{inboxLabel[lang]}</a>
         {user.role === "seller" && (
           <>
             <a href="/listings/new" className="underline">{t.create}</a>

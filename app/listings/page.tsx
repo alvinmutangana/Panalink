@@ -58,7 +58,7 @@ async function Results({ searchParams }: { searchParams: Promise<Params> }) {
                   className="mb-3 h-48 w-full rounded object-cover"
                 />
               )}
-              <h2 className="text-lg font-semibold">{l.title}</h2>
+              <h2 className="text-lg font-semibold"><a href={`/listings/${l.id}`} className="underline">{l.title}</a></h2>
               <p className="text-sm opacity-70">
                 {catLabel(l.category)} · {l.district}
               </p>

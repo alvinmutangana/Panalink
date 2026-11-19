@@ -1,4 +1,4 @@
-import { pgTable, text, integer, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, timestamp, index, unique } from "drizzle-orm/pg-core";
 import { user } from "./auth-schema";
 
 export * from "./auth-schema";
@@ -36,3 +36,40 @@ export const sellerVerifications = pgTable("seller_verifications", {
   submittedAt: timestamp("submitted_at").defaultNow().notNull(),
   reviewedAt: timestamp("reviewed_at"),
 });
+export const conversations = pgTable(
+  "conversations",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    listingId: text("listing_id")
+      .notNull()
+      .references(() => listings.id, { onDelete: "cascade" }),
+    buyerId: text("buyer_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    sellerId: text("seller_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [unique("conversations_listing_buyer_unique").on(t.listingId, t.buyerId)]
+);
+
+export const messages = pgTable(
+  "messages",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    conversationId: text("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    senderId: text("sender_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [index("messages_conversation_idx").on(t.conversationId, t.createdAt)]
+);
