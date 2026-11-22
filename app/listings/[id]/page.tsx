@@ -8,11 +8,12 @@ import { listings, user } from "../../../db/schema";
 import { getDict, getLang } from "../../../lib/i18n";
 import LanguageSwitcher from "../../../components/LanguageSwitcher";
 import { startConversation } from "../../messages/actions";
+import { placeOrder } from "../../orders/actions";
 
 const extra = {
-  en: { soldBy: "Sold by", back: "← Back to listings", message: "Message seller", login: "Log in to message the seller" },
-  fr: { soldBy: "Vendu par", back: "← Retour aux annonces", message: "Contacter le vendeur", login: "Connectez-vous pour contacter le vendeur" },
-  rw: { soldBy: "Acuruzwa na", back: "← Subira ku bicuruzwa", message: "Andikira umucuruzi", login: "Injira kugira ngo wandikire umucuruzi" },
+  en: { soldBy: "Sold by", back: "← Back to listings", message: "Message seller", login: "Log in to message or order", qty: "Quantity", order: "Place order" },
+  fr: { soldBy: "Vendu par", back: "← Retour aux annonces", message: "Contacter le vendeur", login: "Connectez-vous pour contacter ou commander", qty: "Quantité", order: "Commander" },
+  rw: { soldBy: "Acuruzwa na", back: "← Subira ku bicuruzwa", message: "Andikira umucuruzi", login: "Injira kugira ngo wandikire cyangwa utumize", qty: "Ingano", order: "Tumiza" },
 };
 
 async function Detail({ params }: { params: Promise<{ id: string }> }) {
@@ -75,13 +76,31 @@ async function Detail({ params }: { params: Promise<{ id: string }> }) {
           {x.login}
         </a>
       )}
+
       {session && session.user.id !== row.sellerId && (
-        <form action={startConversation} className="mt-4">
-          <input type="hidden" name="listingId" value={row.id} />
-          <button className="rounded bg-green-700 px-4 py-3 text-white">
-            {x.message}
-          </button>
-        </form>
+        <div className="mt-4 flex flex-col gap-4">
+          <form action={placeOrder} className="flex items-end gap-2">
+            <input type="hidden" name="listingId" value={row.id} />
+            <label className="flex flex-col text-sm">
+              {x.qty}
+              <input
+                name="quantity"
+                type="number"
+                min={1}
+                max={1000}
+                defaultValue={1}
+                required
+                className="w-24 rounded border p-3"
+              />
+            </label>
+            <button className="rounded bg-green-700 px-4 py-3 text-white">{x.order}</button>
+          </form>
+
+          <form action={startConversation}>
+            <input type="hidden" name="listingId" value={row.id} />
+            <button className="rounded border px-4 py-3">{x.message}</button>
+          </form>
+        </div>
       )}
     </>
   );

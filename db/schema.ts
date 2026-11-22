@@ -73,3 +73,47 @@ export const messages = pgTable(
   },
   (t) => [index("messages_conversation_idx").on(t.conversationId, t.createdAt)]
 );
+export const orders = pgTable(
+  "orders",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    listingId: text("listing_id")
+      .notNull()
+      .references(() => listings.id, { onDelete: "cascade" }),
+    buyerId: text("buyer_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    sellerId: text("seller_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    quantity: integer("quantity").notNull(),
+    unitPrice: integer("unit_price").notNull(), // RWF, copied from the listing
+    total: integer("total").notNull(), // RWF
+    status: text("status").notNull().default("pending"), // pending | accepted | declined | cancelled
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => [
+    index("orders_buyer_idx").on(t.buyerId),
+    index("orders_seller_idx").on(t.sellerId),
+  ]
+);
+export const payments = pgTable(
+  "payments",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    orderId: text("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(),
+    amount: integer("amount").notNull(), // RWF
+    status: text("status").notNull(), // paid | failed
+    reference: text("reference").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [index("payments_order_idx").on(t.orderId)]
+);

@@ -33,6 +33,7 @@ async function UserInfo() {
       <div className="mt-4 flex flex-col gap-2">
         <a href="/listings" className="underline">{t.browse}</a>
         <a href="/messages" className="underline">{inboxLabel[lang]}</a>
+        <a href="/orders" className="underline">{lang === "fr" ? "Commandes" : lang === "rw" ? "Komande" : "Orders"}</a>
         {user.role === "seller" && (
           <>
             <a href="/listings/new" className="underline">{t.create}</a>
