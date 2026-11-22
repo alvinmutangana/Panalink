@@ -1,26 +1,131 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Surfaces */
+  --background: #f6f4ed;
+  --foreground: #26312d;
+  --card: #ffffff;
+  --card-foreground: #26312d;
+  --secondary: #e8ece7;
+  --secondary-foreground: #173f35;
+  --muted: #e8ece7;
+  --muted-foreground: #5b6862;
+
+  /* Brand */
+  --primary: #173f35;
+  --primary-foreground: #f6f4ed;
+  --accent: #c59b55; /* decoration only on light surfaces: 2.3:1 on ivory fails AA */
+  --accent-foreground: #173f35;
+
+  /* Semantic (all pass AA as text on ivory) */
+  --destructive: #b3261e;
+  --destructive-foreground: #ffffff;
+  --success: #1e6b4a;
+  --warning: #8a5a00;
+
+  /* Lines, focus, shape */
+  --border: #dcdfd8; /* dividers */
+  --input: #7d8983; /* form control borders, 3:1 */
+  --ring: #173f35;
+  --radius: 0.5rem;
+  --elevation-1: 0 1px 2px rgb(23 63 53 / 0.06), 0 1px 1px rgb(23 63 53 / 0.04);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --shadow-card: var(--elevation-1);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    color-scheme: light;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+  }
+
+  h1, h2, h3 {
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+  }
+
+  input, select, textarea {
+    background-color: var(--card);
+    border-color: var(--input);
+  }
+
+  ::placeholder {
+    color: var(--muted-foreground);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--accent);
+    color: var(--primary);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Page width + side padding used by every section */
+@utility container-page {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 72rem;
+  padding-inline: 1rem;
+  @media (min-width: 640px) {
+    padding-inline: 1.5rem;
+  }
+}
+
+/* Prices: aligned digits, confident weight */
+@utility price {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
 }
