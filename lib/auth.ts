@@ -17,7 +17,7 @@ export const auth = betterAuth({
     databaseHooks: {
     user: {
       create: {
-        before: async (user) => ({
+        before: async (user: Record<string, any>) => ({
           data: { ...user, role: user.role === "seller" ? "seller" : "buyer" },
         }),
       },
