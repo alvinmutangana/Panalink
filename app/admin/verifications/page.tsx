@@ -1,70 +1,113 @@
 import { Suspense } from "react";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
-import { auth } from "../../../lib/auth";
-import { db } from "../../../db";
-import { sellerVerifications, user } from "../../../db/schema";
+import { getAdminLabels } from "../../../lib/admin-i18n";
+import { getPendingRequests, requireAdmin } from "../../../lib/admin";
+import { getLang } from "../../../lib/i18n";
+import { shortDate } from "../../../lib/format";
+import { cn } from "../../../lib/utils";
+import { buttonVariants } from "../../../components/ui/button";
+import { Skeleton } from "../../../components/ui/skeleton";
 import { reviewVerification } from "./actions";
 
-async function PendingList() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) redirect("/login");
-  if (session.user.role !== "admin") redirect("/dashboard");
-
-  const rows = await db
-    .select({
-      userId: sellerVerifications.userId,
-      idNumber: sellerVerifications.idNumber,
-      submittedAt: sellerVerifications.submittedAt,
-      name: user.name,
-      email: user.email,
-      district: user.district,
-    })
-    .from(sellerVerifications)
-    .innerJoin(user, eq(user.id, sellerVerifications.userId))
-    .where(eq(sellerVerifications.status, "pending"));
-
-  if (rows.length === 0) return <p>No pending requests.</p>;
+async function Requests() {
+  await requireAdmin();
+  const [a, lang, rows] = await Promise.all([
+    getAdminLabels(),
+    getLang(),
+    getPendingRequests(),
+  ]);
 
   return (
-    <ul className="flex flex-col gap-4">
-      {rows.map((r) => (
-        <li key={r.userId} className="rounded border p-4">
-          <h2 className="text-lg font-semibold">{r.name}</h2>
-          <p className="text-sm opacity-70">
-            {r.email} · {r.district}
-          </p>
-          <p className="mt-2">ID: {r.idNumber}</p>
-          <div className="mt-3 flex gap-3">
-            {(["approved", "rejected"] as const).map((d) => (
-              <form key={d} action={reviewVerification}>
-                <input type="hidden" name="userId" value={r.userId} />
-                <input type="hidden" name="decision" value={d} />
-                <button
-                  className={
-                    d === "approved"
-                      ? "rounded bg-green-700 px-3 py-1 text-white"
-                      : "rounded bg-red-700 px-3 py-1 text-white"
-                  }
-                >
-                  {d === "approved" ? "Approve" : "Reject"}
-                </button>
-              </form>
-            ))}
-          </div>
-        </li>
-      ))}
-    </ul>
+    <>
+      <h1 className="text-3xl">{a.reqTitle}</h1>
+      <p className="mt-2 text-muted-foreground">{a.approveNote}</p>
+
+      {rows.length === 0 ? (
+        <div className="mt-8 rounded-xl border border-dashed bg-card p-8 text-center">
+          <h2 className="text-lg font-medium">{a.reqEmpty}</h2>
+          <p className="mt-1 text-muted-foreground">{a.reqEmptyText}</p>
+        </div>
+      ) : (
+        <ul className="mt-6 flex flex-col gap-4">
+          {rows.map((r) => (
+            <li
+              key={r.userId}
+              className="rounded-xl bg-card p-4 ring-1 ring-foreground/10 sm:p-5"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <h2 className="text-lg font-medium">{r.name}</h2>
+                  <p className="text-sm text-muted-foreground">
+                    {r.email} · {r.district}
+                  </p>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {a.submitted} {shortDate(r.submittedAt, lang)}
+                </p>
+              </div>
+
+              <dl className="mt-4">
+                <dt className="text-sm text-muted-foreground">{a.idNumber}</dt>
+                <dd className="mt-1 font-mono text-lg tracking-wider">{r.idNumber}</dd>
+              </dl>
+
+              <div className="mt-4 flex flex-wrap items-start gap-3">
+                <form action={reviewVerification}>
+                  <input type="hidden" name="userId" value={r.userId} />
+                  <input type="hidden" name="decision" value="approved" />
+                  <button type="submit" className={buttonVariants()}>
+                    {a.approve}
+                  </button>
+                </form>
+
+                <details>
+                  <summary
+                    className={cn(
+                      buttonVariants({ variant: "outline" }),
+                      "cursor-pointer list-none text-destructive [&::-webkit-details-marker]:hidden"
+                    )}
+                  >
+                    {a.reject}
+                  </summary>
+                  <form
+                    action={reviewVerification}
+                    className="mt-3 rounded-lg bg-destructive/10 p-3"
+                  >
+                    <input type="hidden" name="userId" value={r.userId} />
+                    <input type="hidden" name="decision" value="rejected" />
+                    <p className="font-medium">{a.rejectConfirm}</p>
+                    <p className="text-sm text-muted-foreground">{a.rejectConfirmText}</p>
+                    <button
+                      type="submit"
+                      className={cn(
+                        buttonVariants({ size: "sm" }),
+                        "mt-3 bg-destructive hover:bg-destructive/90"
+                      )}
+                    >
+                      {a.rejectYes}
+                    </button>
+                  </form>
+                </details>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
   );
 }
 
-export default function AdminVerificationsPage() {
+export default function VerificationsPage() {
   return (
-    <main className="mx-auto max-w-md p-6">
-      <h1 className="mb-6 text-2xl font-bold">Seller verification requests</h1>
-      <Suspense fallback={<p>Loading...</p>}>
-        <PendingList />
+    <main className="container-page max-w-5xl py-8">
+      <Suspense
+        fallback={
+          <>
+            <Skeleton className="h-9 w-80" />
+            <Skeleton className="mt-6 h-40 w-full rounded-xl" />
+          </>
+        }
+      >
+        <Requests />
       </Suspense>
     </main>
   );

@@ -114,7 +114,7 @@ async function Dashboard() {
         <Action href="/orders">{d.orders}</Action>
         <Action href="/messages">{d.messages}</Action>
         <Action href="/listings">{d.browse}</Action>
-        {isAdmin && <Action href="/admin/verifications">{d.adminArea}</Action>}
+        {isAdmin && <Action href="/admin">{d.adminArea}</Action>}
       </nav>
 
       <div className="mt-10">

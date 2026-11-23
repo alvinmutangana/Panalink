@@ -33,7 +33,7 @@ export default async function SiteHeader() {
       {isSeller && <a href="/listings/new" className={link}>{s.sell}</a>}
       {user && <a href="/messages" className={link}>{s.messages}</a>}
       {user && <a href="/orders" className={link}>{s.orders}</a>}
-      {isAdmin && <a href="/admin/verifications" className={link}>{s.admin}</a>}
+      {isAdmin && <a href="/admin" className={link}>{s.admin}</a>}
       {user ? (
         <a href="/dashboard" className={cta}>{s.account}</a>
       ) : (
