@@ -6,11 +6,13 @@ import { auth } from "../../../../lib/auth";
 import { db } from "../../../../db";
 import { listings } from "../../../../db/schema";
 import { getDict } from "../../../../lib/i18n";
+import { getDashLabels } from "../../../../lib/dash-i18n";
 import { getPhotoLabels } from "../../../../lib/photos-i18n";
 import { updateListing } from "./actions";
-import PhotoUploader from "../../../../components/PhotoUploader";
+import ListingForm from "../../../../components/ListingForm";
+import { Skeleton } from "../../../../components/ui/skeleton";
 
-async function EditForm({ params }: { params: Promise<{ id: string }> }) {
+async function EditListing({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
   const session = await auth.api.getSession({ headers: await headers() });
@@ -23,8 +25,13 @@ async function EditForm({ params }: { params: Promise<{ id: string }> }) {
 
   if (!listing) notFound();
 
-  const [t, photoLabels] = await Promise.all([getDict(), getPhotoLabels()]);
-  const initial = listing.images.length
+  const [t, d, photoLabels] = await Promise.all([
+    getDict(),
+    getDashLabels(),
+    getPhotoLabels(),
+  ]);
+
+  const photos = listing.images.length
     ? listing.images
     : listing.imageUrl
       ? [listing.imageUrl]
@@ -32,22 +39,25 @@ async function EditForm({ params }: { params: Promise<{ id: string }> }) {
 
   return (
     <>
-      <h1 className="mb-6 text-2xl font-bold">{t.editTitle}</h1>
-      <form action={updateListing} className="flex flex-col gap-4">
-        <input type="hidden" name="id" value={listing.id} />
-        <PhotoUploader initial={initial} labels={photoLabels} />
-        <input name="title" defaultValue={listing.title} required className="rounded border p-3" />
-        <textarea name="description" defaultValue={listing.description ?? ""} rows={3} className="rounded border p-3" />
-        <select name="category" defaultValue={listing.category} className="rounded border p-3">
-          <option value="agriculture">{t.categories.agriculture}</option>
-          <option value="crafts">{t.categories.crafts}</option>
-          <option value="food">{t.categories.food}</option>
-          <option value="other">{t.categories.other}</option>
-        </select>
-        <input name="price" type="number" min={1} defaultValue={listing.price} required className="rounded border p-3" />
-        <input name="district" defaultValue={listing.district} required className="rounded border p-3" />
-        <button className="rounded bg-green-700 p-3 text-white">{t.save}</button>
-      </form>
+      <h1 className="text-3xl">{d.formEdit}</h1>
+      <div className="mt-6 rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
+        <ListingForm
+          action={updateListing}
+          mode="edit"
+          t={t}
+          d={d}
+          photoLabels={photoLabels}
+          values={{
+            id: listing.id,
+            title: listing.title,
+            description: listing.description ?? "",
+            category: listing.category,
+            price: listing.price,
+            district: listing.district,
+            photos,
+          }}
+        />
+      </div>
     </>
   );
 }
@@ -58,9 +68,9 @@ export default function EditListingPage({
   params: Promise<{ id: string }>;
 }) {
   return (
-    <main className="mx-auto max-w-md p-6">
-      <Suspense fallback={<p>Loading...</p>}>
-        <EditForm params={params} />
+    <main className="container-page max-w-2xl py-8">
+      <Suspense fallback={<Skeleton className="h-96 w-full rounded-xl" />}>
+        <EditListing params={params} />
       </Suspense>
     </main>
   );
