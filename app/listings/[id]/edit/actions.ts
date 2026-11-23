@@ -20,13 +20,14 @@ export async function updateListing(formData: FormData) {
   const category = String(formData.get("category") ?? "");
   const district = String(formData.get("district") ?? "").trim();
   const price = Number(formData.get("price"));
-  const rawImage = String(formData.get("imageUrl") ?? "");
 
   if (!id || !title || !district || !CATEGORIES.includes(category)) return;
   if (!Number.isInteger(price) || price <= 0) return;
 
   const allowedPrefix = `${process.env.R2_PUBLIC_URL}/listings/${session.user.id}/`;
-  const newImage = rawImage.startsWith(allowedPrefix) ? rawImage : undefined;
+  const images = [...new Set(formData.getAll("images").map(String))]
+    .filter((u) => u.startsWith(allowedPrefix))
+    .slice(0, 3);
 
   await db
     .update(listings)
@@ -36,7 +37,8 @@ export async function updateListing(formData: FormData) {
       category,
       price,
       district,
-      ...(newImage ? { imageUrl: newImage } : {}),
+      imageUrl: images[0] ?? null,
+      images,
       updatedAt: new Date(),
     })
     .where(and(eq(listings.id, id), eq(listings.sellerId, session.user.id)));

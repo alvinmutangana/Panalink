@@ -13,6 +13,7 @@ export async function getProduct(id: string) {
       price: listings.price,
       district: listings.district,
       imageUrl: listings.imageUrl,
+      images: listings.images,
       sellerName: user.name,
       sellerDistrict: user.district,
       verification: sellerVerifications.status,
@@ -23,6 +24,8 @@ export async function getProduct(id: string) {
     .where(eq(listings.id, id));
 
   if (!row) return null;
-  const { verification, ...rest } = row;
-  return { ...rest, verified: verification === "approved" };
+
+  const { verification, images, ...rest } = row;
+  const photos = images.length ? images : row.imageUrl ? [row.imageUrl] : [];
+  return { ...rest, photos, verified: verification === "approved" };
 }

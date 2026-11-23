@@ -4,12 +4,14 @@ import { notFound } from "next/navigation";
 import { auth } from "../../../lib/auth";
 import { getDict } from "../../../lib/i18n";
 import { getDetail } from "../../../lib/detail-i18n";
+import { getPhotoLabels } from "../../../lib/photos-i18n";
 import { getProduct } from "../../../lib/product";
 import { control, label } from "../../../lib/ui";
 import { startConversation } from "../../messages/actions";
 import { placeOrder } from "../../orders/actions";
 import { buttonVariants } from "../../../components/ui/button";
 import { Skeleton } from "../../../components/ui/skeleton";
+import Gallery from "../../../components/Gallery";
 import { cn } from "../../../lib/utils";
 
 function Check() {
@@ -32,9 +34,10 @@ function Check() {
 
 async function Detail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [t, d, product, session] = await Promise.all([
+  const [t, d, p, product, session] = await Promise.all([
     getDict(),
     getDetail(),
+    getPhotoLabels(),
     getProduct(id),
     auth.api.getSession({ headers: await headers() }),
   ]);
@@ -56,29 +59,8 @@ async function Detail({ params }: { params: Promise<{ id: string }> }) {
       </a>
 
       <div className="mt-2 grid gap-8 lg:grid-cols-[1.2fr_1fr] lg:gap-12">
-        {/* Photo */}
-        <div className="aspect-[4/3] w-full overflow-hidden rounded-xl bg-secondary">
-          {product.imageUrl ? (
-            <img
-              src={product.imageUrl}
-              alt={product.title}
-              width={1024}
-              height={768}
-              fetchPriority="high"
-              decoding="async"
-              className="size-full object-cover"
-            />
-          ) : (
-            <div
-              aria-hidden="true"
-              className="flex size-full items-center justify-center text-7xl font-semibold text-primary/30"
-            >
-              {product.title.charAt(0).toUpperCase()}
-            </div>
-          )}
-        </div>
+        <Gallery images={product.photos} title={product.title} showLabel={p.show} />
 
-        {/* Details */}
         <div>
           <p className="text-sm text-muted-foreground">{categoryLabel}</p>
           <h1 className="mt-1 text-3xl text-balance">{product.title}</h1>
@@ -92,7 +74,6 @@ async function Detail({ params }: { params: Promise<{ id: string }> }) {
             </p>
           )}
 
-          {/* Seller */}
           <section
             aria-labelledby="seller-heading"
             className="mt-6 rounded-xl bg-card p-4 ring-1 ring-foreground/10"
@@ -119,7 +100,6 @@ async function Detail({ params }: { params: Promise<{ id: string }> }) {
             </p>
           </section>
 
-          {/* Actions */}
           <div className="mt-6">
             {isOwner ? (
               <div className="rounded-xl bg-secondary p-4">

@@ -4,9 +4,9 @@ import { redirect } from "next/navigation";
 import { auth } from "../../../lib/auth";
 import { isApprovedSeller } from "../../../lib/seller";
 import { getDict } from "../../../lib/i18n";
-import LanguageSwitcher from "../../../components/LanguageSwitcher";
+import { getPhotoLabels } from "../../../lib/photos-i18n";
 import { createListing } from "./actions";
-import ImageUpload from "../../../components/ImageUpload";
+import PhotoUploader from "../../../components/PhotoUploader";
 
 async function ListingForm() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -14,14 +14,13 @@ async function ListingForm() {
   if (session.user.role !== "seller") redirect("/dashboard");
   if (!(await isApprovedSeller(session.user.id))) redirect("/verify");
 
-  const t = await getDict();
+  const [t, photoLabels] = await Promise.all([getDict(), getPhotoLabels()]);
 
   return (
     <>
-      <LanguageSwitcher />
       <h1 className="mb-6 text-2xl font-bold">{t.createTitle}</h1>
       <form action={createListing} className="flex flex-col gap-4">
-        <ImageUpload />
+        <PhotoUploader labels={photoLabels} />
         <input name="title" placeholder={t.whatSelling} required className="rounded border p-3" />
         <textarea name="description" placeholder={t.shortDesc} rows={3} className="rounded border p-3" />
         <select name="category" className="rounded border p-3">

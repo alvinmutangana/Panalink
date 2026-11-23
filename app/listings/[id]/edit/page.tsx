@@ -6,9 +6,9 @@ import { auth } from "../../../../lib/auth";
 import { db } from "../../../../db";
 import { listings } from "../../../../db/schema";
 import { getDict } from "../../../../lib/i18n";
-import LanguageSwitcher from "../../../../components/LanguageSwitcher";
+import { getPhotoLabels } from "../../../../lib/photos-i18n";
 import { updateListing } from "./actions";
-import ImageUpload from "../../../../components/ImageUpload";
+import PhotoUploader from "../../../../components/PhotoUploader";
 
 async function EditForm({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -23,15 +23,19 @@ async function EditForm({ params }: { params: Promise<{ id: string }> }) {
 
   if (!listing) notFound();
 
-  const t = await getDict();
+  const [t, photoLabels] = await Promise.all([getDict(), getPhotoLabels()]);
+  const initial = listing.images.length
+    ? listing.images
+    : listing.imageUrl
+      ? [listing.imageUrl]
+      : [];
 
   return (
     <>
-      <LanguageSwitcher />
       <h1 className="mb-6 text-2xl font-bold">{t.editTitle}</h1>
       <form action={updateListing} className="flex flex-col gap-4">
         <input type="hidden" name="id" value={listing.id} />
-        <ImageUpload initialUrl={listing.imageUrl ?? ""} />
+        <PhotoUploader initial={initial} labels={photoLabels} />
         <input name="title" defaultValue={listing.title} required className="rounded border p-3" />
         <textarea name="description" defaultValue={listing.description ?? ""} rows={3} className="rounded border p-3" />
         <select name="category" defaultValue={listing.category} className="rounded border p-3">

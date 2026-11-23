@@ -1,4 +1,5 @@
 import { pgTable, text, integer, timestamp, index, unique } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { user } from "./auth-schema";
 
 export * from "./auth-schema";
@@ -18,6 +19,7 @@ export const listings = pgTable(
     price: integer("price").notNull(), // in RWF
     district: text("district").notNull(),
     imageUrl: text("image_url"),
+    images: text("images").array().notNull().default(sql`'{}'::text[]`),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
