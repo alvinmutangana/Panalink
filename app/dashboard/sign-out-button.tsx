@@ -8,10 +8,11 @@ export default function SignOutButton({ label = "Sign out" }: { label?: string }
 
   return (
     <button
-      className="rounded bg-gray-800 px-4 py-2 text-white"
+      className="min-h-11 rounded-md bg-primary px-4 text-primary-foreground"
       onClick={async () => {
         await authClient.signOut();
         router.push("/login");
+        router.refresh();
       }}
     >
       {label}
