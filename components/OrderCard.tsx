@@ -1,11 +1,19 @@
-import { cancelOrder, payOrder, respondToOrder } from "../app/orders/actions";
+import { cancelOrder, respondToOrder } from "../app/orders/actions";
 import {
   confirmReceived,
   markDelivering,
   submitReview,
 } from "../app/orders/lifecycle";
+import {
+  confirmPayment,
+  rejectPayment,
+  submitPayment,
+} from "../app/orders/payments";
+import { raiseDispute } from "../app/orders/disputes";
 import type { OrderLabels } from "../lib/orders-i18n";
 import type { LifeLabels } from "../lib/lifecycle-i18n";
+import type { PayLabels } from "../lib/pay-i18n";
+import type { DisputeLabels } from "../lib/dispute-i18n";
 import { control, label } from "../lib/ui";
 import { cn } from "../lib/utils";
 import { buttonVariants } from "./ui/button";
@@ -23,35 +31,47 @@ export type OrderView = {
   imageUrl: string | null;
   otherName: string;
   dateText: string;
-  lastPaymentFailed: boolean;
   review: { rating: number; comment: string | null } | null;
+  payment: { provider: string; reference: string; status: string } | null;
+  payTo: { provider: string; number: string; accountName: string } | null;
+  dispute: { status: string; reason: string; resolution: string | null } | null;
 };
 
 const PROGRESS: Record<string, number> = {
   pending: 1,
   accepted: 2,
+  payment_submitted: 2,
   paid: 3,
   delivering: 4,
   completed: 5,
 };
+
+const DISPUTABLE = ["payment_submitted", "paid", "delivering", "completed"];
 
 export default function OrderCard({
   order,
   role,
   o,
   l,
+  p,
+  dp,
 }: {
   order: OrderView;
   role: "buyer" | "seller";
   o: OrderLabels;
   l: LifeLabels;
+  p: PayLabels;
+  dp: DisputeLabels;
 }) {
   const statusLabel =
     (l.status as Record<string, string>)[order.status] ??
+    (p.status as Record<string, string>)[order.status] ??
     (o.status as Record<string, string>)[order.status] ??
     order.status;
   const progress = PROGRESS[order.status] ?? 0;
   const steps = [o.stepPlaced, o.stepAccepted, o.stepPaid, l.stepDelivery, l.stepCompleted];
+  const providerName = (v: string) =>
+    (p.providers as Record<string, string>)[v] ?? v;
 
   return (
     <li className="rounded-xl bg-card p-4 ring-1 ring-foreground/10 sm:p-5">
@@ -172,9 +192,48 @@ export default function OrderCard({
         </div>
       )}
 
-      {/* Seller: waiting for payment */}
+      {/* Seller: waiting for the buyer to pay */}
       {role === "seller" && order.status === "accepted" && (
         <p className="mt-4 text-sm text-muted-foreground">{o.waitingPay}</p>
+      )}
+
+      {/* Seller: verify the reported payment */}
+      {role === "seller" && order.status === "payment_submitted" && order.payment && (
+        <div className="mt-4 rounded-lg bg-warning/10 p-4">
+          <h3 className="text-base font-medium">{p.sellerReported}</h3>
+          <dl className="mt-2 grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
+            <div>
+              <dt className="text-muted-foreground">{p.network}</dt>
+              <dd>{providerName(order.payment.provider)}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">{p.txId}</dt>
+              <dd className="break-all font-mono">{order.payment.reference}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">{p.amount}</dt>
+              <dd className="price">{order.total.toLocaleString()} RWF</dd>
+            </div>
+          </dl>
+          <p className="mt-3 text-sm">{p.sellerCheck}</p>
+          <div className="mt-3 flex flex-wrap gap-3">
+            <form action={confirmPayment}>
+              <input type="hidden" name="orderId" value={order.id} />
+              <button type="submit" className={buttonVariants()}>
+                {p.gotMoney}
+              </button>
+            </form>
+            <form action={rejectPayment}>
+              <input type="hidden" name="orderId" value={order.id} />
+              <button
+                type="submit"
+                className={cn(buttonVariants({ variant: "outline" }), "text-destructive")}
+              >
+                {p.noMoney}
+              </button>
+            </form>
+          </div>
+        </div>
       )}
 
       {/* Seller: paid, send it */}
@@ -188,7 +247,6 @@ export default function OrderCard({
         </form>
       )}
 
-      {/* Seller: waiting for receipt */}
       {role === "seller" && order.status === "delivering" && (
         <p className="mt-4 text-sm text-muted-foreground">{l.waitingReceive}</p>
       )}
@@ -206,56 +264,105 @@ export default function OrderCard({
         </form>
       )}
 
-      {/* Buyer: pay an accepted order */}
+      {/* Buyer: pay the seller directly */}
       {role === "buyer" && order.status === "accepted" && (
-        <form action={payOrder} className="mt-4 rounded-lg bg-secondary/60 p-4">
-          <input type="hidden" name="orderId" value={order.id} />
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-base font-medium">{o.payTitle}</h3>
-            <span className="rounded-full bg-accent/30 px-2.5 py-0.5 text-xs font-medium">
-              {o.testBadge}
-            </span>
-          </div>
+        order.payTo ? (
+          <form action={submitPayment} className="mt-4 rounded-lg bg-secondary/60 p-4">
+            <input type="hidden" name="orderId" value={order.id} />
+            <h3 className="text-base font-medium">{p.payTitle}</h3>
 
-          {order.lastPaymentFailed && (
-            <p
-              role="alert"
-              className="mt-3 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            {order.payment?.status === "rejected" && (
+              <p
+                role="alert"
+                className="mt-3 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              >
+                {p.rejectedNote}
+              </p>
+            )}
+
+            <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm">
+              <li>
+                {p.sendExactly}{" "}
+                <strong className="price">{order.total.toLocaleString()} RWF</strong>{" "}
+                {p.to}{" "}
+                <strong>
+                  {providerName(order.payTo.provider)} {order.payTo.number}
+                </strong>{" "}
+                ({p.accountName}: {order.payTo.accountName})
+              </li>
+              <li>{p.step2}</li>
+            </ol>
+
+            <label htmlFor={`net-${order.id}`} className={cn(label, "mt-4")}>
+              {p.networkLabel}
+            </label>
+            <select
+              id={`net-${order.id}`}
+              name="provider"
+              defaultValue={order.payTo.provider}
+              className={control}
             >
-              {o.payFailed}
+              <option value="mtn">{p.providers.mtn}</option>
+              <option value="airtel">{p.providers.airtel}</option>
+            </select>
+
+            <label htmlFor={`ref-${order.id}`} className={cn(label, "mt-3")}>
+              {p.refLabel}
+            </label>
+            <input
+              id={`ref-${order.id}`}
+              name="reference"
+              required
+              minLength={6}
+              maxLength={30}
+              pattern="[A-Za-z0-9._\-]{6,30}"
+              autoComplete="off"
+              aria-describedby={`ref-hint-${order.id}`}
+              className={control}
+            />
+            <p
+              id={`ref-hint-${order.id}`}
+              className="mt-1.5 text-sm text-muted-foreground"
+            >
+              {p.refHint}
+            </p>
+
+            <button
+              type="submit"
+              className={cn(buttonVariants({ size: "lg" }), "mt-3 w-full")}
+            >
+              {p.submitRef}
+            </button>
+            <p className="mt-2 text-sm text-muted-foreground">{p.payNote}</p>
+          </form>
+        ) : (
+          <p className="mt-4 rounded-md bg-warning/10 px-3 py-2 text-sm text-warning">
+            {p.noMethodBuyer}
+          </p>
+        )
+      )}
+
+      {/* Buyer: waiting for the seller to confirm */}
+      {role === "buyer" && order.status === "payment_submitted" && (
+        <div className="mt-4 rounded-lg bg-secondary/60 p-4 text-sm">
+          <p>{p.waitingConfirm}</p>
+          {order.payment && (
+            <p className="mt-1 text-muted-foreground">
+              {providerName(order.payment.provider)} ·{" "}
+              <span className="break-all font-mono">{order.payment.reference}</span>
             </p>
           )}
-
-          <label htmlFor={`phone-${order.id}`} className={cn(label, "mt-3")}>
-            {o.phoneLabel}
-          </label>
-          <input
-            id={`phone-${order.id}`}
-            name="phone"
-            inputMode="numeric"
-            pattern="07[2389][0-9]{7}"
-            maxLength={10}
-            autoComplete="tel-national"
-            required
-            aria-describedby={`phone-hint-${order.id}`}
-            className={control}
-          />
-          <p
-            id={`phone-hint-${order.id}`}
-            className="mt-1.5 text-sm text-muted-foreground"
-          >
-            {o.phoneHint}
-          </p>
-
-          <button
-            type="submit"
-            className={cn(buttonVariants({ size: "lg" }), "mt-3 w-full")}
-          >
-            {o.payBtn} · {order.total.toLocaleString()} RWF
-          </button>
-          <p className="mt-2 text-sm text-muted-foreground">{o.testNote}</p>
-        </form>
+        </div>
       )}
+
+      {/* Payment confirmed line */}
+      {["paid", "delivering", "completed"].includes(order.status) &&
+        order.payment?.status === "confirmed" && (
+          <p className="mt-4 text-sm text-success">
+            ✓ {p.paidLine} · {providerName(order.payment.provider)} ·{" "}
+            <span className="break-all font-mono">{order.payment.reference}</span>
+          </p>
+        )}
 
       {/* Buyer: confirm receipt */}
       {role === "buyer" && order.status === "delivering" && (
@@ -268,7 +375,7 @@ export default function OrderCard({
         </form>
       )}
 
-      {/* Completed: show the review */}
+      {/* Review shown */}
       {order.status === "completed" && order.review && (
         <div className="mt-4 rounded-lg bg-secondary/60 p-4">
           <h3 className="text-base font-medium">
@@ -287,7 +394,7 @@ export default function OrderCard({
         </div>
       )}
 
-      {/* Completed: buyer writes a review */}
+      {/* Buyer writes a review */}
       {role === "buyer" && order.status === "completed" && !order.review && (
         <form action={submitReview} className="mt-4 rounded-lg bg-secondary/60 p-4">
           <input type="hidden" name="orderId" value={order.id} />
@@ -300,13 +407,7 @@ export default function OrderCard({
                   key={n}
                   className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-md border border-input bg-card px-3 font-medium has-[:checked]:border-primary has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
                 >
-                  <input
-                    type="radio"
-                    name="rating"
-                    value={n}
-                    required
-                    className="sr-only"
-                  />
+                  <input type="radio" name="rating" value={n} required className="sr-only" />
                   {n}
                   <span aria-hidden="true"> ★</span>
                 </label>
@@ -339,6 +440,62 @@ export default function OrderCard({
             {l.submitReview}
           </button>
         </form>
+      )}
+
+      {/* Disputes */}
+      {order.dispute ? (
+        <div
+          className={cn(
+            "mt-4 rounded-lg p-4 text-sm",
+            order.dispute.status === "resolved" ? "bg-success/10" : "bg-warning/10"
+          )}
+        >
+          <h3 className="text-base font-medium">
+            {order.dispute.status === "resolved" ? dp.resolvedTitle : dp.openTitle}
+          </h3>
+          <p className="mt-1 whitespace-pre-line">{order.dispute.reason}</p>
+          {order.dispute.resolution && (
+            <p className="mt-2 whitespace-pre-line">
+              <strong>{dp.resolutionIs}:</strong> {order.dispute.resolution}
+            </p>
+          )}
+        </div>
+      ) : (
+        DISPUTABLE.includes(order.status) && (
+          <details className="mt-4">
+            <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm font-medium text-primary underline underline-offset-4">
+              {dp.report}
+            </summary>
+            <form action={raiseDispute} className="mt-2 rounded-lg bg-secondary/60 p-4">
+              <input type="hidden" name="orderId" value={order.id} />
+              <label htmlFor={`reason-${order.id}`} className={label}>
+                {dp.reasonLabel}
+              </label>
+              <textarea
+                id={`reason-${order.id}`}
+                name="reason"
+                rows={3}
+                required
+                minLength={10}
+                maxLength={500}
+                aria-describedby={`reason-hint-${order.id}`}
+                className={cn(control, "py-2")}
+              />
+              <p
+                id={`reason-hint-${order.id}`}
+                className="mt-1.5 text-sm text-muted-foreground"
+              >
+                {dp.reasonHint}
+              </p>
+              <button
+                type="submit"
+                className={cn(buttonVariants({ variant: "outline" }), "mt-3")}
+              >
+                {dp.send}
+              </button>
+            </form>
+          </details>
+        )
       )}
     </li>
   );

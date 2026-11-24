@@ -1,6 +1,7 @@
 const tone: Record<string, string> = {
   pending: "bg-warning/10 text-warning",
   accepted: "bg-primary/10 text-primary",
+  payment_submitted: "bg-warning/10 text-warning",
   paid: "bg-success/10 text-success",
   delivering: "bg-primary/10 text-primary",
   completed: "bg-success/10 text-success",

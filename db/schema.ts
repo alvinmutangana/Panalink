@@ -22,6 +22,7 @@ export const listings = pgTable(
     images: text("images").array().notNull().default(sql`'{}'::text[]`),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    delivery: text("delivery").notNull().default("local"),
   },
   (t) => [
     index("listings_district_idx").on(t.district),
@@ -141,5 +142,39 @@ export const reviews = pgTable(
   (t) => [
     unique("reviews_order_unique").on(t.orderId),
     index("reviews_seller_idx").on(t.sellerId),
+  ]
+);
+export const paymentMethods = pgTable("payment_methods", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  provider: text("provider").notNull(), // mtn | airtel
+  number: text("number").notNull(), // phone number or merchant code
+  accountName: text("account_name").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const disputes = pgTable(
+  "disputes",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    orderId: text("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    raisedBy: text("raised_by")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    reason: text("reason").notNull(),
+    status: text("status").notNull().default("open"), // open | resolved
+    resolution: text("resolution"),
+    resolvedBy: text("resolved_by").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    resolvedAt: timestamp("resolved_at"),
+  },
+  (t) => [
+    index("disputes_order_idx").on(t.orderId),
+    index("disputes_status_idx").on(t.status),
   ]
 );

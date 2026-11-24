@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { auth } from "../../lib/auth";
 import { getDict } from "../../lib/i18n";
 import { getDashLabels } from "../../lib/dash-i18n";
+import { getPayLabels } from "../../lib/pay-i18n";
+import { getPaymentMethod } from "../../lib/payment-methods";
 import { getBuyerStats, getSellerStats } from "../../lib/dashboard";
 import { cn } from "../../lib/utils";
 import { buttonVariants } from "../../components/ui/button";
@@ -39,11 +41,12 @@ async function Dashboard() {
   const isSeller = user.role === "seller";
   const isAdmin = user.role === "admin";
 
-  const [t, d] = await Promise.all([getDict(), getDashLabels()]);
+  const [t, d, p] = await Promise.all([getDict(), getDashLabels(), getPayLabels()]);
   const roleLabel = t.roles[user.role as keyof typeof t.roles] ?? user.role;
 
   const seller = isSeller ? await getSellerStats(user.id) : null;
   const buyer = !isSeller ? await getBuyerStats(user.id) : null;
+  const method = isSeller ? await getPaymentMethod(user.id) : null;
 
   const verifText = seller
     ? {
@@ -87,6 +90,18 @@ async function Dashboard() {
         </section>
       )}
 
+      {isSeller && !method && (
+        <section className="mt-4 rounded-xl bg-warning/10 p-4 ring-1 ring-warning/30">
+          <p className="text-sm">{p.bannerMissing}</p>
+          <a
+            href="/payment-details"
+            className={cn(buttonVariants({ size: "sm" }), "mt-3")}
+          >
+            {p.bannerBtn}
+          </a>
+        </section>
+      )}
+
       <h2 className="mt-8 text-xl">
         {seller ? d.sellerOverview : d.buyerOverview}
       </h2>
@@ -111,6 +126,7 @@ async function Dashboard() {
       <nav aria-label={d.welcome} className="mt-8 grid gap-3 sm:grid-cols-2">
         {isSeller && <Action href="/listings/new">{d.addProduct}</Action>}
         {isSeller && <Action href="/listings/mine">{d.myProducts}</Action>}
+        {isSeller && <Action href="/payment-details">{p.menu}</Action>}
         <Action href="/orders">{d.orders}</Action>
         <Action href="/messages">{d.messages}</Action>
         <Action href="/listings">{d.browse}</Action>

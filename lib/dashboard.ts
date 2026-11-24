@@ -13,7 +13,7 @@ export async function getSellerStats(userId: string) {
     db
       .select({ n: count() })
       .from(orders)
-      .where(and(eq(orders.sellerId, userId), eq(orders.status, "pending"))),
+      .where(and(eq(orders.sellerId, userId), inArray(orders.status, ["pending", "payment_submitted"]))),
     db
       .select({ total: orders.total })
       .from(orders)
