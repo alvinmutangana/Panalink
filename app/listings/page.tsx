@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { getDict } from "../../lib/i18n";
 import { getShell } from "../../lib/shell-i18n";
 import { getMarket } from "../../lib/market-i18n";
+import { getFilterLabels } from "../../lib/filter-i18n";
 import { getProducts } from "../../lib/queries";
 import { CATEGORIES } from "../../lib/categories";
 import { control, label } from "../../lib/ui";
@@ -15,39 +16,60 @@ type Params = {
   q?: string;
   category?: string;
   district?: string;
+  min?: string;
+  max?: string;
   page?: string;
 };
 
 const gridClass =
   "mt-6 grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 sm:gap-5 lg:grid-cols-4";
 
+function parsePrice(v?: string) {
+  if (!v) return undefined;
+  const n = Number(v);
+  return Number.isInteger(n) && n >= 0 ? n : undefined;
+}
+
 async function Results({ searchParams }: { searchParams: Promise<Params> }) {
   const sp = await searchParams;
-  const [t, s, m] = await Promise.all([getDict(), getShell(), getMarket()]);
+  const [t, s, m, f] = await Promise.all([
+    getDict(),
+    getShell(),
+    getMarket(),
+    getFilterLabels(),
+  ]);
 
   const q = sp.q?.trim() ?? "";
   const category = (CATEGORIES as readonly string[]).includes(sp.category ?? "")
     ? sp.category!
     : "";
   const district = sp.district?.trim() ?? "";
+  const minPrice = parsePrice(sp.min);
+  const maxPrice = parsePrice(sp.max);
   const page = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
 
   const rows = await getProducts({
     q,
     category,
     district,
+    minPrice,
+    maxPrice,
     limit: PAGE_SIZE + 1,
     offset: (page - 1) * PAGE_SIZE,
   });
   const hasNext = rows.length > PAGE_SIZE;
   const items = rows.slice(0, PAGE_SIZE);
-  const hasFilters = Boolean(q || category || district);
+  const hasFilters = Boolean(
+    q || category || district || minPrice !== undefined || maxPrice !== undefined
+  );
 
   const pageHref = (p: number) => {
     const u = new URLSearchParams();
     if (q) u.set("q", q);
     if (category) u.set("category", category);
     if (district) u.set("district", district);
+    if (minPrice !== undefined) u.set("min", String(minPrice));
+    if (maxPrice !== undefined) u.set("max", String(maxPrice));
     if (p > 1) u.set("page", String(p));
     const qs = u.toString();
     return qs ? `/listings?${qs}` : "/listings";
@@ -60,9 +82,9 @@ async function Results({ searchParams }: { searchParams: Promise<Params> }) {
       <form
         method="GET"
         action="/listings"
-        className="mt-6 grid gap-4 rounded-xl bg-card p-4 ring-1 ring-foreground/10 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_auto] lg:items-end"
+        className="mt-6 grid gap-4 rounded-xl bg-card p-4 ring-1 ring-foreground/10 sm:grid-cols-2 lg:grid-cols-4 lg:items-end"
       >
-        <div>
+        <div className="lg:col-span-2">
           <label htmlFor="f-q" className={label}>
             {s.searchLabel}
           </label>
@@ -105,7 +127,35 @@ async function Results({ searchParams }: { searchParams: Promise<Params> }) {
             className={control}
           />
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div>
+          <label htmlFor="f-min" className={label}>
+            {f.min}
+          </label>
+          <input
+            id="f-min"
+            name="min"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            defaultValue={minPrice}
+            className={control}
+          />
+        </div>
+        <div>
+          <label htmlFor="f-max" className={label}>
+            {f.max}
+          </label>
+          <input
+            id="f-max"
+            name="max"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            defaultValue={maxPrice}
+            className={control}
+          />
+        </div>
+        <div className="flex flex-wrap gap-2 sm:col-span-2">
           <button type="submit" className={buttonVariants()}>
             {m.apply}
           </button>
@@ -178,7 +228,7 @@ function ResultsSkeleton() {
   return (
     <>
       <Skeleton className="h-9 w-56" />
-      <Skeleton className="mt-6 h-28 w-full rounded-xl" />
+      <Skeleton className="mt-6 h-40 w-full rounded-xl" />
       <div className={gridClass}>
         {Array.from({ length: 8 }).map((_, i) => (
           <Skeleton key={i} className="aspect-[4/5] rounded-xl" />

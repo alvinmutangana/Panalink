@@ -1,14 +1,22 @@
-import { and, count, desc, eq, ilike, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, lte, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { db } from "../db";
 import { listings, sellerVerifications, user } from "../db/schema";
 
-type Filters = { q?: string; category?: string; district?: string };
+type Filters = {
+  q?: string;
+  category?: string;
+  district?: string;
+  minPrice?: number;
+  maxPrice?: number;
+};
 
 export async function getProducts({
   q,
   category,
   district,
+  minPrice,
+  maxPrice,
   limit = 12,
   offset = 0,
 }: Filters & { limit?: number; offset?: number }) {
@@ -16,6 +24,8 @@ export async function getProducts({
   if (q?.trim()) where.push(ilike(listings.title, `%${q.trim()}%`));
   if (category) where.push(eq(listings.category, category));
   if (district?.trim()) where.push(ilike(listings.district, district.trim()));
+  if (minPrice !== undefined) where.push(gte(listings.price, minPrice));
+  if (maxPrice !== undefined) where.push(lte(listings.price, maxPrice));
 
   const rows = await db
     .select({
