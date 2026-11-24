@@ -39,6 +39,7 @@ export async function updateListing(formData: FormData) {
       district,
       imageUrl: images[0] ?? null,
       images,
+      delivery: formData.get("delivery") === "nationwide" ? "nationwide" : "local",
       updatedAt: new Date(),
     })
     .where(and(eq(listings.id, id), eq(listings.sellerId, session.user.id)));

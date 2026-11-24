@@ -13,6 +13,7 @@ export async function getProduct(id: string) {
       price: listings.price,
       district: listings.district,
       imageUrl: listings.imageUrl,
+      delivery: listings.delivery,
       images: listings.images,
       sellerName: user.name,
       sellerDistrict: user.district,

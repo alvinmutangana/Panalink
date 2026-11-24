@@ -55,6 +55,7 @@ async function EditListing({ params }: { params: Promise<{ id: string }> }) {
             price: listing.price,
             district: listing.district,
             photos,
+            delivery: listing.delivery,
           }}
         />
       </div>

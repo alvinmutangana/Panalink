@@ -1,3 +1,4 @@
+import DeliveryField from "./DeliveryField";
 import { CATEGORIES } from "../lib/categories";
 import { DISTRICTS } from "../lib/districts";
 import type { Dict } from "../lib/i18n";
@@ -16,6 +17,7 @@ export type ListingValues = {
   price: number | "";
   district: string;
   photos: string[];
+  delivery?: string;
 };
 
 export default function ListingForm({
@@ -139,6 +141,8 @@ export default function ListingForm({
           {d.districtHint}
         </p>
       </div>
+
+      <DeliveryField value={values.delivery} />
 
       <div className="flex flex-wrap gap-3">
         <button type="submit" className={buttonVariants({ size: "lg" })}>

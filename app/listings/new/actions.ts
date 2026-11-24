@@ -38,6 +38,7 @@ export async function createListing(formData: FormData) {
     district,
     imageUrl: images[0] ?? null,
     images,
+    delivery: formData.get("delivery") === "nationwide" ? "nationwide" : "local",
   });
 
   redirect("/dashboard");

@@ -28,6 +28,7 @@ export default function SignupForm({ a }: { a: AuthLabels }) {
       password: String(form.get("password")),
       role,
       district: String(form.get("district")),
+      language: document.cookie.match(/(?:^|; )lang=(rw|en|fr)/)?.[1] ?? "en",
     });
 
     setLoading(false);
