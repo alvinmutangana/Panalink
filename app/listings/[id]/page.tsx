@@ -1,3 +1,4 @@
+import DeliveryBadge from "../../../components/DeliveryBadge";
 import { Suspense } from "react";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
@@ -64,6 +65,7 @@ async function Detail({ params }: { params: Promise<{ id: string }> }) {
 
         <div>
           <p className="text-sm text-muted-foreground">{categoryLabel}</p>
+          <DeliveryBadge value={product.delivery} />
           <h1 className="mt-1 text-3xl text-balance">{product.title}</h1>
           <p className="price mt-3 text-3xl text-primary">
             {product.price.toLocaleString()} RWF

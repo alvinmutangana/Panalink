@@ -3,8 +3,10 @@ import { getDict } from "../../lib/i18n";
 import { getShell } from "../../lib/shell-i18n";
 import { getMarket } from "../../lib/market-i18n";
 import { getFilterLabels } from "../../lib/filter-i18n";
+import { getDeliveryLabels } from "../../lib/delivery-i18n";
 import { getProducts } from "../../lib/queries";
 import { CATEGORIES } from "../../lib/categories";
+import { DISTRICTS } from "../../lib/districts";
 import { control, label } from "../../lib/ui";
 import ProductCard from "../../components/ProductCard";
 import { Skeleton } from "../../components/ui/skeleton";
@@ -16,6 +18,7 @@ type Params = {
   q?: string;
   category?: string;
   district?: string;
+  reach?: string;
   min?: string;
   max?: string;
   page?: string;
@@ -32,11 +35,12 @@ function parsePrice(v?: string) {
 
 async function Results({ searchParams }: { searchParams: Promise<Params> }) {
   const sp = await searchParams;
-  const [t, s, m, f] = await Promise.all([
+  const [t, s, m, f, dl] = await Promise.all([
     getDict(),
     getShell(),
     getMarket(),
     getFilterLabels(),
+    getDeliveryLabels(),
   ]);
 
   const q = sp.q?.trim() ?? "";
@@ -44,6 +48,7 @@ async function Results({ searchParams }: { searchParams: Promise<Params> }) {
     ? sp.category!
     : "";
   const district = sp.district?.trim() ?? "";
+  const reach = sp.reach?.trim() ?? "";
   const minPrice = parsePrice(sp.min);
   const maxPrice = parsePrice(sp.max);
   const page = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
@@ -52,6 +57,7 @@ async function Results({ searchParams }: { searchParams: Promise<Params> }) {
     q,
     category,
     district,
+    reach,
     minPrice,
     maxPrice,
     limit: PAGE_SIZE + 1,
@@ -60,7 +66,7 @@ async function Results({ searchParams }: { searchParams: Promise<Params> }) {
   const hasNext = rows.length > PAGE_SIZE;
   const items = rows.slice(0, PAGE_SIZE);
   const hasFilters = Boolean(
-    q || category || district || minPrice !== undefined || maxPrice !== undefined
+    q || category || district || reach || minPrice !== undefined || maxPrice !== undefined
   );
 
   const pageHref = (p: number) => {
@@ -68,6 +74,7 @@ async function Results({ searchParams }: { searchParams: Promise<Params> }) {
     if (q) u.set("q", q);
     if (category) u.set("category", category);
     if (district) u.set("district", district);
+    if (reach) u.set("reach", reach);
     if (minPrice !== undefined) u.set("min", String(minPrice));
     if (maxPrice !== undefined) u.set("max", String(maxPrice));
     if (p > 1) u.set("page", String(p));
@@ -122,10 +129,27 @@ async function Results({ searchParams }: { searchParams: Promise<Params> }) {
           <input
             id="f-district"
             name="district"
+            list="rw-districts"
             defaultValue={district}
             placeholder={t.districtPlaceholder}
             className={control}
           />
+        </div>
+        <div>
+          <label htmlFor="f-reach" className={label}>
+            {dl.reach}
+          </label>
+          <input
+            id="f-reach"
+            name="reach"
+            list="rw-districts"
+            defaultValue={reach}
+            aria-describedby="f-reach-hint"
+            className={control}
+          />
+          <p id="f-reach-hint" className="mt-1 text-xs text-muted-foreground">
+            {dl.reachHint}
+          </p>
         </div>
         <div>
           <label htmlFor="f-min" className={label}>
@@ -155,6 +179,11 @@ async function Results({ searchParams }: { searchParams: Promise<Params> }) {
             className={control}
           />
         </div>
+        <datalist id="rw-districts">
+          {DISTRICTS.map((d) => (
+            <option key={d} value={d} />
+          ))}
+        </datalist>
         <div className="flex flex-wrap gap-2 sm:col-span-2">
           <button type="submit" className={buttonVariants()}>
             {m.apply}

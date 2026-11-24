@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, ilike, lte, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, lte, or, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { db } from "../db";
 import { listings, sellerVerifications, user } from "../db/schema";
@@ -7,6 +7,7 @@ type Filters = {
   q?: string;
   category?: string;
   district?: string;
+  reach?: string;
   minPrice?: number;
   maxPrice?: number;
 };
@@ -15,6 +16,7 @@ export async function getProducts({
   q,
   category,
   district,
+  reach,
   minPrice,
   maxPrice,
   limit = 12,
@@ -24,6 +26,11 @@ export async function getProducts({
   if (q?.trim()) where.push(ilike(listings.title, `%${q.trim()}%`));
   if (category) where.push(eq(listings.category, category));
   if (district?.trim()) where.push(ilike(listings.district, district.trim()));
+  if (reach?.trim()) {
+    where.push(
+      or(ilike(listings.district, reach.trim()), eq(listings.delivery, "nationwide"))!
+    );
+  }
   if (minPrice !== undefined) where.push(gte(listings.price, minPrice));
   if (maxPrice !== undefined) where.push(lte(listings.price, maxPrice));
 
