@@ -1,9 +1,16 @@
 import { cancelOrder, payOrder, respondToOrder } from "../app/orders/actions";
+import {
+  confirmReceived,
+  markDelivering,
+  submitReview,
+} from "../app/orders/lifecycle";
 import type { OrderLabels } from "../lib/orders-i18n";
+import type { LifeLabels } from "../lib/lifecycle-i18n";
 import { control, label } from "../lib/ui";
 import { cn } from "../lib/utils";
 import { buttonVariants } from "./ui/button";
 import StatusBadge from "./StatusBadge";
+import Stars from "./Stars";
 
 export type OrderView = {
   id: string;
@@ -17,23 +24,34 @@ export type OrderView = {
   otherName: string;
   dateText: string;
   lastPaymentFailed: boolean;
+  review: { rating: number; comment: string | null } | null;
 };
 
-const PROGRESS: Record<string, number> = { pending: 1, accepted: 2, paid: 3 };
+const PROGRESS: Record<string, number> = {
+  pending: 1,
+  accepted: 2,
+  paid: 3,
+  delivering: 4,
+  completed: 5,
+};
 
 export default function OrderCard({
   order,
   role,
   o,
+  l,
 }: {
   order: OrderView;
   role: "buyer" | "seller";
   o: OrderLabels;
+  l: LifeLabels;
 }) {
   const statusLabel =
-    o.status[order.status as keyof typeof o.status] ?? order.status;
+    (l.status as Record<string, string>)[order.status] ??
+    (o.status as Record<string, string>)[order.status] ??
+    order.status;
   const progress = PROGRESS[order.status] ?? 0;
-  const steps = [o.stepPlaced, o.stepAccepted, o.stepPaid];
+  const steps = [o.stepPlaced, o.stepAccepted, o.stepPaid, l.stepDelivery, l.stepCompleted];
 
   return (
     <li className="rounded-xl bg-card p-4 ring-1 ring-foreground/10 sm:p-5">
@@ -111,7 +129,13 @@ export default function OrderCard({
               >
                 {i + 1}
               </span>
-              <span className={i < progress ? "font-medium" : "text-muted-foreground"}>
+              <span
+                className={
+                  i === progress - 1
+                    ? "font-medium"
+                    : "hidden text-muted-foreground sm:inline"
+                }
+              >
                 {s}
               </span>
               {i < steps.length - 1 && (
@@ -151,6 +175,22 @@ export default function OrderCard({
       {/* Seller: waiting for payment */}
       {role === "seller" && order.status === "accepted" && (
         <p className="mt-4 text-sm text-muted-foreground">{o.waitingPay}</p>
+      )}
+
+      {/* Seller: paid, send it */}
+      {role === "seller" && order.status === "paid" && (
+        <form action={markDelivering} className="mt-4">
+          <input type="hidden" name="orderId" value={order.id} />
+          <button type="submit" className={buttonVariants()}>
+            {l.markSent}
+          </button>
+          <p className="mt-2 text-sm text-muted-foreground">{l.markSentHelp}</p>
+        </form>
+      )}
+
+      {/* Seller: waiting for receipt */}
+      {role === "seller" && order.status === "delivering" && (
+        <p className="mt-4 text-sm text-muted-foreground">{l.waitingReceive}</p>
       )}
 
       {/* Buyer: cancel a pending order */}
@@ -214,6 +254,90 @@ export default function OrderCard({
             {o.payBtn} · {order.total.toLocaleString()} RWF
           </button>
           <p className="mt-2 text-sm text-muted-foreground">{o.testNote}</p>
+        </form>
+      )}
+
+      {/* Buyer: confirm receipt */}
+      {role === "buyer" && order.status === "delivering" && (
+        <form action={confirmReceived} className="mt-4">
+          <input type="hidden" name="orderId" value={order.id} />
+          <button type="submit" className={buttonVariants({ size: "lg" })}>
+            {l.confirmReceived}
+          </button>
+          <p className="mt-2 text-sm text-muted-foreground">{l.confirmHelp}</p>
+        </form>
+      )}
+
+      {/* Completed: show the review */}
+      {order.status === "completed" && order.review && (
+        <div className="mt-4 rounded-lg bg-secondary/60 p-4">
+          <h3 className="text-base font-medium">
+            {role === "buyer" ? l.yourReview : l.buyerReview}
+          </h3>
+          <p className="mt-1 flex items-center gap-2">
+            <Stars
+              value={order.review.rating}
+              label={`${order.review.rating} ${l.outOf}`}
+            />
+            <span className="text-sm">{order.review.rating}/5</span>
+          </p>
+          {order.review.comment && (
+            <p className="mt-2 whitespace-pre-line text-sm">{order.review.comment}</p>
+          )}
+        </div>
+      )}
+
+      {/* Completed: buyer writes a review */}
+      {role === "buyer" && order.status === "completed" && !order.review && (
+        <form action={submitReview} className="mt-4 rounded-lg bg-secondary/60 p-4">
+          <input type="hidden" name="orderId" value={order.id} />
+          <fieldset>
+            <legend className="text-base font-medium">{l.reviewTitle}</legend>
+            <p className="mt-1 text-sm text-muted-foreground">{l.ratingLabel}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <label
+                  key={n}
+                  className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-md border border-input bg-card px-3 font-medium has-[:checked]:border-primary has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
+                >
+                  <input
+                    type="radio"
+                    name="rating"
+                    value={n}
+                    required
+                    className="sr-only"
+                  />
+                  {n}
+                  <span aria-hidden="true"> ★</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          <label htmlFor={`comment-${order.id}`} className={cn(label, "mt-4")}>
+            {l.commentLabel}
+          </label>
+          <textarea
+            id={`comment-${order.id}`}
+            name="comment"
+            rows={3}
+            maxLength={500}
+            aria-describedby={`comment-hint-${order.id}`}
+            className={cn(control, "py-2")}
+          />
+          <p
+            id={`comment-hint-${order.id}`}
+            className="mt-1.5 text-sm text-muted-foreground"
+          >
+            {l.commentHint}
+          </p>
+
+          <button
+            type="submit"
+            className={cn(buttonVariants({ size: "lg" }), "mt-3 w-full")}
+          >
+            {l.submitReview}
+          </button>
         </form>
       )}
     </li>

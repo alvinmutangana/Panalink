@@ -1,4 +1,4 @@
-import { and, count, eq, or } from "drizzle-orm";
+import { and, count, eq, inArray, or } from "drizzle-orm";
 import { db } from "../db";
 import {
   conversations,
@@ -17,7 +17,7 @@ export async function getSellerStats(userId: string) {
     db
       .select({ total: orders.total })
       .from(orders)
-      .where(and(eq(orders.sellerId, userId), eq(orders.status, "paid"))),
+      .where(and(eq(orders.sellerId, userId), inArray(orders.status, ["paid", "delivering", "completed"]))),
     db
       .select({ status: sellerVerifications.status })
       .from(sellerVerifications)

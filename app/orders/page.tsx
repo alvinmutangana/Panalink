@@ -4,9 +4,10 @@ import { redirect } from "next/navigation";
 import { desc, eq, inArray, or } from "drizzle-orm";
 import { auth } from "../../lib/auth";
 import { db } from "../../db";
-import { listings, orders, payments, user } from "../../db/schema";
+import { listings, orders, payments, reviews, user } from "../../db/schema";
 import { getLang } from "../../lib/i18n";
 import { getOrderLabels } from "../../lib/orders-i18n";
+import { getLifeLabels } from "../../lib/lifecycle-i18n";
 import { shortDate } from "../../lib/format";
 import { cn } from "../../lib/utils";
 import OrderCard, { type OrderView } from "../../components/OrderCard";
@@ -18,7 +19,11 @@ async function OrdersList() {
   if (!session) redirect("/login");
   const me = session.user.id;
 
-  const [o, lang] = await Promise.all([getOrderLabels(), getLang()]);
+  const [o, l, lang] = await Promise.all([
+    getOrderLabels(),
+    getLifeLabels(),
+    getLang(),
+  ]);
 
   const rows = await db
     .select({
@@ -51,6 +56,7 @@ async function OrdersList() {
   const nameOf = new Map(others.map((u) => [u.id, u.name]));
 
   const orderIds = rows.map((r) => r.id);
+
   const pays = orderIds.length
     ? await db
         .select({ orderId: payments.orderId, status: payments.status })
@@ -60,6 +66,20 @@ async function OrdersList() {
     : [];
   const lastPay = new Map<string, string>();
   for (const p of pays) if (!lastPay.has(p.orderId)) lastPay.set(p.orderId, p.status);
+
+  const revs = orderIds.length
+    ? await db
+        .select({
+          orderId: reviews.orderId,
+          rating: reviews.rating,
+          comment: reviews.comment,
+        })
+        .from(reviews)
+        .where(inArray(reviews.orderId, orderIds))
+    : [];
+  const reviewOf = new Map(
+    revs.map((r) => [r.orderId, { rating: r.rating, comment: r.comment }])
+  );
 
   const view = (r: (typeof rows)[number]): OrderView => ({
     id: r.id,
@@ -73,6 +93,7 @@ async function OrdersList() {
     otherName: nameOf.get(r.buyerId === me ? r.sellerId : r.buyerId) ?? "?",
     dateText: shortDate(r.createdAt, lang),
     lastPaymentFailed: lastPay.get(r.id) === "failed",
+    review: reviewOf.get(r.id) ?? null,
   });
 
   const received = rows.filter((r) => r.sellerId === me).map(view);
@@ -99,7 +120,7 @@ async function OrdersList() {
           </h2>
           <ul className="mt-4 flex flex-col gap-4">
             {received.map((r) => (
-              <OrderCard key={r.id} order={r} role="seller" o={o} />
+              <OrderCard key={r.id} order={r} role="seller" o={o} l={l} />
             ))}
           </ul>
         </section>
@@ -112,7 +133,7 @@ async function OrdersList() {
           </h2>
           <ul className="mt-4 flex flex-col gap-4">
             {placed.map((r) => (
-              <OrderCard key={r.id} order={r} role="buyer" o={o} />
+              <OrderCard key={r.id} order={r} role="buyer" o={o} l={l} />
             ))}
           </ul>
         </section>

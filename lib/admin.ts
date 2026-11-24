@@ -1,4 +1,4 @@
-import { count, desc, eq } from "drizzle-orm";
+import { count, desc, eq, inArray } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "./auth";
@@ -27,7 +27,7 @@ export async function getOverview() {
         .where(eq(sellerVerifications.status, "pending")),
       db.select({ n: count() }).from(listings),
       db.select({ n: count() }).from(orders),
-      db.select({ n: count() }).from(orders).where(eq(orders.status, "paid")),
+      db.select({ n: count() }).from(orders).where(inArray(orders.status, ["paid", "delivering", "completed"])),
     ]);
 
   return {
