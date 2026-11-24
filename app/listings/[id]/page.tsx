@@ -12,6 +12,7 @@ import { placeOrder } from "../../orders/actions";
 import { buttonVariants } from "../../../components/ui/button";
 import { Skeleton } from "../../../components/ui/skeleton";
 import Gallery from "../../../components/Gallery";
+import SellerReviews from "../../../components/SellerReviews";
 import { cn } from "../../../lib/utils";
 
 function Check() {
@@ -99,6 +100,10 @@ async function Detail({ params }: { params: Promise<{ id: string }> }) {
               {d.location}: {product.sellerDistrict ?? product.district}
             </p>
           </section>
+
+          <Suspense fallback={null}>
+            <SellerReviews sellerId={product.sellerId} />
+          </Suspense>
 
           <div className="mt-6">
             {isOwner ? (
