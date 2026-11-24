@@ -3,16 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "../lib/auth-client";
+import { control, label } from "../lib/ui";
+import { cn } from "../lib/utils";
+import { buttonVariants } from "./ui/button";
+import PasswordField from "./PasswordField";
+import type { AuthLabels } from "../lib/auth-i18n";
 
-type Labels = {
-  email: string;
-  password: string;
-  loginBtn: string;
-  loggingIn: string;
-  wrongCreds: string;
-};
-
-export default function LoginForm({ labels }: { labels: Labels }) {
+export default function LoginForm({ a }: { a: AuthLabels }) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -30,19 +27,51 @@ export default function LoginForm({ labels }: { labels: Labels }) {
 
     setLoading(false);
     if (error) {
-      setError(labels.wrongCreds);
+      setError(a.wrongCreds);
       return;
     }
     router.push("/dashboard");
+    router.refresh();
   }
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <input name="email" type="email" placeholder={labels.email} required className="rounded border p-3" />
-      <input name="password" type="password" placeholder={labels.password} required className="rounded border p-3" />
-      {error && <p className="text-red-600">{error}</p>}
-      <button disabled={loading} className="rounded bg-green-700 p-3 text-white">
-        {loading ? labels.loggingIn : labels.loginBtn}
+      <div>
+        <label htmlFor="login-email" className={label}>
+          {a.email}
+        </label>
+        <input
+          id="login-email"
+          name="email"
+          type="email"
+          required
+          autoComplete="email"
+          className={control}
+        />
+      </div>
+
+      <PasswordField
+        id="login-password"
+        label={a.password}
+        showLabel={a.showPassword}
+        autoComplete="current-password"
+      />
+
+      {error && (
+        <p
+          role="alert"
+          className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+        >
+          {error}
+        </p>
+      )}
+
+      <button
+        type="submit"
+        disabled={loading}
+        className={cn(buttonVariants({ size: "lg" }), "w-full")}
+      >
+        {loading ? a.loggingIn : a.loginBtn}
       </button>
     </form>
   );

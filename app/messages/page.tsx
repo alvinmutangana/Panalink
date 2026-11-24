@@ -6,19 +6,18 @@ import { auth } from "../../lib/auth";
 import { db } from "../../db";
 import { conversations, listings, messages, user } from "../../db/schema";
 import { getLang } from "../../lib/i18n";
-import LanguageSwitcher from "../../components/LanguageSwitcher";
-
-const extra = {
-  en: { title: "Messages", empty: "No conversations yet.", noMsg: "No messages yet", you: "You" },
-  fr: { title: "Messages", empty: "Aucune conversation.", noMsg: "Aucun message", you: "Vous" },
-  rw: { title: "Ubutumwa", empty: "Nta biganiro biraba.", noMsg: "Nta butumwa buraba", you: "Wowe" },
-};
+import { getOrderLabels } from "../../lib/orders-i18n";
+import { shortDate } from "../../lib/format";
+import { cn } from "../../lib/utils";
+import { buttonVariants } from "../../components/ui/button";
+import { Skeleton } from "../../components/ui/skeleton";
 
 async function Inbox() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) redirect("/login");
   const me = session.user.id;
-  const x = extra[await getLang()];
+
+  const [o, lang] = await Promise.all([getOrderLabels(), getLang()]);
 
   const convos = await db
     .select({
@@ -41,7 +40,7 @@ async function Inbox() {
         .from(user)
         .where(inArray(user.id, otherIds))
     : [];
-  const nameOf = new Map(others.map((o) => [o.id, o.name]));
+  const nameOf = new Map(others.map((u) => [u.id, u.name]));
 
   const items = await Promise.all(
     convos.map(async (c) => {
@@ -52,35 +51,59 @@ async function Inbox() {
         .orderBy(desc(messages.createdAt))
         .limit(1);
       const otherId = c.buyerId === me ? c.sellerId : c.buyerId;
+      const when = last?.createdAt ?? c.createdAt;
       return {
         ...c,
         otherName: nameOf.get(otherId) ?? "?",
         last,
-        activity: (last?.createdAt ?? c.createdAt).getTime(),
+        when,
       };
     })
   );
-  items.sort((a, b) => b.activity - a.activity);
+  items.sort((a, b) => b.when.getTime() - a.when.getTime());
 
   return (
     <>
-      <LanguageSwitcher />
-      <h1 className="mb-6 text-2xl font-bold">{x.title}</h1>
+      <h1 className="text-3xl">{o.msgTitle}</h1>
 
       {items.length === 0 ? (
-        <p>{x.empty}</p>
+        <div className="mt-8 rounded-xl border border-dashed bg-card p-8 text-center">
+          <h2 className="text-lg font-medium">{o.msgEmpty}</h2>
+          <p className="mt-1 text-muted-foreground">{o.msgEmptyText}</p>
+          <a href="/listings" className={cn(buttonVariants(), "mt-4")}>
+            {o.emptyCta}
+          </a>
+        </div>
       ) : (
-        <ul className="flex flex-col gap-3">
+        <ul className="mt-6 flex flex-col gap-3">
           {items.map((c) => (
             <li key={c.id}>
-              <a href={`/messages/${c.id}`} className="block rounded border p-4">
-                <p className="font-semibold">{c.otherName}</p>
-                <p className="text-sm opacity-70">{c.listingTitle}</p>
-                <p className="mt-1 text-sm">
-                  {c.last
-                    ? `${c.last.senderId === me ? x.you + ": " : ""}${c.last.body}`
-                    : x.noMsg}
-                </p>
+              <a
+                href={`/messages/${c.id}`}
+                className="flex items-center gap-4 rounded-xl bg-card p-4 ring-1 ring-foreground/10 hover:bg-secondary/50"
+              >
+                <span
+                  aria-hidden="true"
+                  className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary text-lg font-semibold text-primary-foreground"
+                >
+                  {c.otherName.charAt(0).toUpperCase()}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-baseline justify-between gap-3">
+                    <span className="truncate font-medium">{c.otherName}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {shortDate(c.when, lang)}
+                    </span>
+                  </span>
+                  <span className="block truncate text-sm text-muted-foreground">
+                    {c.listingTitle}
+                  </span>
+                  <span className="block truncate text-sm">
+                    {c.last
+                      ? `${c.last.senderId === me ? o.you + ": " : ""}${c.last.body}`
+                      : o.noMsgs}
+                  </span>
+                </span>
               </a>
             </li>
           ))}
@@ -92,8 +115,16 @@ async function Inbox() {
 
 export default function InboxPage() {
   return (
-    <main className="mx-auto max-w-md p-6">
-      <Suspense fallback={<p>Loading...</p>}>
+    <main className="container-page max-w-3xl py-8">
+      <Suspense
+        fallback={
+          <>
+            <Skeleton className="h-9 w-40" />
+            <Skeleton className="mt-6 h-24 w-full rounded-xl" />
+            <Skeleton className="mt-3 h-24 w-full rounded-xl" />
+          </>
+        }
+      >
         <Inbox />
       </Suspense>
     </main>

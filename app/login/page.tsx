@@ -1,38 +1,39 @@
 import { Suspense } from "react";
-import { getDict } from "../../lib/i18n";
-import LanguageSwitcher from "../../components/LanguageSwitcher";
+import { getAuthLabels } from "../../lib/auth-i18n";
 import LoginForm from "../../components/LoginForm";
+import { Skeleton } from "../../components/ui/skeleton";
 
 async function Content() {
-  const t = await getDict();
+  const a = await getAuthLabels();
 
   return (
-    <>
-      <LanguageSwitcher />
-      <h1 className="mb-6 text-2xl font-bold">{t.loginTitle}</h1>
-      <LoginForm
-        labels={{
-          email: t.email,
-          password: t.password,
-          loginBtn: t.loginBtn,
-          loggingIn: t.loggingIn,
-          wrongCreds: t.wrongCreds,
-        }}
-      />
-      <p className="mt-4 text-sm">
-        {t.noAccount}{" "}
-        <a href="/signup" className="underline">
-          {t.signUpLink}
+    <div className="mx-auto w-full max-w-md">
+      <h1 className="text-3xl">{a.loginTitle}</h1>
+      <p className="mt-2 text-muted-foreground">{a.loginIntro}</p>
+
+      <div className="mt-6 rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
+        <LoginForm a={a} />
+      </div>
+
+      <p className="mt-6 text-center text-sm">
+        {a.noAccount}{" "}
+        <a
+          href="/signup"
+          className="font-medium text-primary underline underline-offset-4"
+        >
+          {a.signupLink}
         </a>
       </p>
-    </>
+    </div>
   );
 }
 
 export default function LoginPage() {
   return (
-    <main className="mx-auto max-w-md p-6">
-      <Suspense fallback={<p>Loading...</p>}>
+    <main className="container-page py-10 sm:py-14">
+      <Suspense
+        fallback={<Skeleton className="mx-auto h-96 w-full max-w-md rounded-xl" />}
+      >
         <Content />
       </Suspense>
     </main>

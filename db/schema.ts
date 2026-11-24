@@ -1,4 +1,5 @@
 import { pgTable, text, integer, timestamp, index, unique } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { user } from "./auth-schema";
 
 export * from "./auth-schema";
@@ -18,8 +19,10 @@ export const listings = pgTable(
     price: integer("price").notNull(), // in RWF
     district: text("district").notNull(),
     imageUrl: text("image_url"),
+    images: text("images").array().notNull().default(sql`'{}'::text[]`),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    delivery: text("delivery").notNull().default("local"),
   },
   (t) => [
     index("listings_district_idx").on(t.district),
@@ -116,4 +119,62 @@ export const payments = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (t) => [index("payments_order_idx").on(t.orderId)]
+);
+export const reviews = pgTable(
+  "reviews",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    orderId: text("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    sellerId: text("seller_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    buyerId: text("buyer_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    rating: integer("rating").notNull(), // 1 to 5
+    comment: text("comment"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [
+    unique("reviews_order_unique").on(t.orderId),
+    index("reviews_seller_idx").on(t.sellerId),
+  ]
+);
+export const paymentMethods = pgTable("payment_methods", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  provider: text("provider").notNull(), // mtn | airtel
+  number: text("number").notNull(), // phone number or merchant code
+  accountName: text("account_name").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const disputes = pgTable(
+  "disputes",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    orderId: text("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    raisedBy: text("raised_by")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    reason: text("reason").notNull(),
+    status: text("status").notNull().default("open"), // open | resolved
+    resolution: text("resolution"),
+    resolvedBy: text("resolved_by").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    resolvedAt: timestamp("resolved_at"),
+  },
+  (t) => [
+    index("disputes_order_idx").on(t.orderId),
+    index("disputes_status_idx").on(t.status),
+  ]
 );

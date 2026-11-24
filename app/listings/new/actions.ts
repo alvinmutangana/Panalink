@@ -20,13 +20,14 @@ export async function createListing(formData: FormData) {
   const category = String(formData.get("category") ?? "");
   const district = String(formData.get("district") ?? "").trim();
   const price = Number(formData.get("price"));
-  const rawImage = String(formData.get("imageUrl") ?? "");
 
   if (!title || !district || !CATEGORIES.includes(category)) return;
   if (!Number.isInteger(price) || price <= 0) return;
 
   const allowedPrefix = `${process.env.R2_PUBLIC_URL}/listings/${session.user.id}/`;
-  const imageUrl = rawImage.startsWith(allowedPrefix) ? rawImage : null;
+  const images = [...new Set(formData.getAll("images").map(String))]
+    .filter((u) => u.startsWith(allowedPrefix))
+    .slice(0, 3);
 
   await db.insert(listings).values({
     sellerId: session.user.id,
@@ -35,7 +36,8 @@ export async function createListing(formData: FormData) {
     category,
     price,
     district,
-    imageUrl,
+    imageUrl: images[0] ?? null,
+    images,
   });
 
   redirect("/dashboard");
